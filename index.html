@@ -479,14 +479,68 @@
 
     <section class="section achievement-section" id="logros"><div class="section-intro"><p class="eyebrow dark-eyebrow">04 / CONSTANCIA Y REFLEXIÓN</p><h2>Reconoce tus avances, <em>no la perfección.</em></h2><p>Los logros celebran la participación y el aprendizaje, no una calificación moral.</p></div><div class="achievement-layout"><article class="surface challenge-card"><span class="section-index">RETO DE LA SEMANA</span><h3>Una decisión consciente</h3><p>Piensa en una situación en la que podrías sentir presión para copiar. ¿Qué harías para actuar con integridad?</p><form id="challenge-form"><div class="field"><label for="challenge-response">Mi acción concreta</label><textarea id="challenge-response" rows="3" maxlength="400" placeholder="Esta semana voy a…" required></textarea></div><button class="button button-primary" type="submit">Completar reto ↗</button><p class="status-message" id="challenge-status" role="status"></p></form><p class="privacy-inline">Se guarda en este navegador para este perfil de demostración; no se envía al personal escolar.</p></article><article class="surface badges-card"><div class="surface-heading"><div><span class="section-index">TUS AVANCES</span><h3>Insignias personales</h3></div></div><div class="badge-grid" id="achievement-list"></div><p class="achievement-note">Reconocimientos personales y formativos, sin clasificaciones públicas.</p></article></div></section>
     <section class="section commitment-section" id="compromiso"><div class="section-intro"><p class="eyebrow dark-eyebrow">05 / MI PLAN PERSONAL</p><h2>La integridad también se <em>practica.</em></h2><p>Define una intención pequeña y realista para tu vida cotidiana.</p></div><article class="surface commitment-card"><h3>¿Qué compromiso quieres asumir?</h3><form id="commitment-form"><div class="field"><label for="commitment-value">Mi compromiso</label><select id="commitment-value" required><option value="">Elige una acción</option><option>Registraré las fuentes mientras investigo.</option><option>Pediré ayuda antes de sentirme rebasado.</option><option>Aclararé las reglas de colaboración antes de empezar.</option><option>Reconoceré mis errores y buscaré corregirlos.</option><option>Verificaré la información antes de compartirla.</option></select></div><div class="field"><label for="commitment-detail">¿Cómo lo pondrás en práctica? (opcional)</label><textarea id="commitment-detail" rows="3" maxlength="350" placeholder="Mi primer paso será…"></textarea></div><button class="button button-primary" type="submit">Guardar mi compromiso</button><p class="status-message" id="commitment-status" role="status"></p></form><div id="commitment-saved" hidden><strong>Tu compromiso está guardado.</strong><p id="commitment-saved-text"></p><button class="button button-quiet" id="edit-commitment" type="button">Actualizar compromiso</button></div><p class="privacy-inline">Se guarda localmente en este navegador.</p></article></section>
-    <section class="section library-section" id="biblioteca"><div class="section-intro"><p class="eyebrow dark-eyebrow">06 / HERRAMIENTAS PRÁCTICAS</p><h2>Biblioteca de <em>integridad académica.</em></h2><p>Guías breves para resolver dudas frecuentes en tareas y proyectos.</p></div><div class="library-controls"><label for="library-search">Buscar recursos</label><input id="library-search" type="search" placeholder="Citas, IA, trabajo en equipo…"><div class="library-filters"><button class="library-filter active" type="button" data-filter="todos">Todos</button><button class="library-filter" type="button" data-filter="fuentes">Fuentes y plagio</button><button class="library-filter" type="button" data-filter="ia">Inteligencia artificial</button><button class="library-filter" type="button" data-filter="equipo">Trabajo en equipo</button><button class="library-filter" type="button" data-filter="decisiones">Decisiones éticas</button></div></div><div class="library-grid" id="library-grid">
-      <article class="surface resource-card" data-category="fuentes" data-search="citas fuentes plagio referencias"><span class="resource-tag">FUENTES Y PLAGIO</span><h3>Cita tus fuentes sin perder tu voz</h3><p>Registra autor, título y enlace mientras investigas. Reconoce la fuente cuando cites o parafrasees una idea.</p><details><summary>Lista práctica</summary><ul><li>Guarda los datos desde el inicio.</li><li>Usa comillas para citas textuales.</li><li>Comprueba que las citas tengan sus referencias.</li></ul></details></article>
-      <article class="surface resource-card" data-category="ia" data-search="inteligencia artificial IA herramientas generativas"><span class="resource-tag">INTELIGENCIA ARTIFICIAL</span><h3>Usa la IA de forma responsable</h3><p>Las reglas varían según la materia. Comprueba qué está permitido antes de usar una herramienta.</p><details><summary>Lista práctica</summary><ul><li>Consulta las instrucciones del docente.</li><li>Verifica datos y referencias.</li><li>Declara el uso cuando se solicite.</li></ul></details></article>
-      <article class="surface resource-card" data-category="equipo" data-search="equipo colaboración mérito contribuciones"><span class="resource-tag">TRABAJO EN EQUIPO</span><h3>Haz visible el trabajo de cada persona</h3><p>Una colaboración justa empieza con acuerdos claros.</p><details><summary>Lista práctica</summary><ul><li>Define responsabilidades antes de empezar.</li><li>Registra acuerdos y cambios.</li><li>Describe las contribuciones con precisión.</li></ul></details></article>
-      <article class="surface resource-card" data-category="decisiones" data-search="presión copiar honestidad decisión ética ayuda"><span class="resource-tag">DECISIONES ÉTICAS</span><h3>Qué hacer ante la presión para copiar</h3><p>Puedes poner límites sin atacar a otras personas y buscar alternativas viables.</p><details><summary>Lista práctica</summary><ul><li>Explica qué puedes compartir.</li><li>Propón estudiar juntos dentro de las reglas.</li><li>Busca orientación si la presión continúa.</li></ul></details></article>
-      <article class="surface resource-card" data-category="fuentes" data-search="investigación datos evidencia honestidad"><span class="resource-tag">INVESTIGACIÓN</span><h3>Presenta la evidencia con honestidad</h3><p>Explica también los datos que no coinciden con tu hipótesis.</p><details><summary>Lista práctica</summary><ul><li>Separa datos e interpretaciones.</li><li>Explica limitaciones relevantes.</li><li>Documenta correcciones.</li></ul></details></article>
-      <article class="surface resource-card" data-category="decisiones" data-search="conflicto interés responsabilidad ética"><span class="resource-tag">RESPONSABILIDAD</span><h3>Reconoce un conflicto de interés</h3><p>Identifica cuándo una relación o beneficio puede influir en tu juicio.</p><details><summary>Lista práctica</summary><ul><li>Identifica quién podría verse afectado.</li><li>Consulta las reglas aplicables.</li><li>Comunica la situación cuando sea apropiado.</li></ul></details></article>
-    </div><p class="empty-state" id="library-empty" hidden>No encontramos recursos. Prueba otra búsqueda o categoría.</p></section>
+    <section class="section library-section" id="biblioteca">
+      <div class="section-intro">
+        <p class="eyebrow dark-eyebrow">06 / HERRAMIENTAS PRÁCTICAS</p>
+        <h2>Biblioteca de <em>integridad académica.</em></h2>
+        <p>Guías aplicables a tus tareas y recursos universitarios para profundizar. Usa las reglas de tu docente cuando sean más específicas.</p>
+      </div>
+      <div class="library-callout surface">
+        <strong>Una regla útil antes de entregar</strong>
+        <p>¿Se puede identificar qué ideas, palabras, imágenes y datos son tuyos y cuáles vienen de otras fuentes? Si no, revisa las citas y explica el uso de herramientas externas antes de entregar.</p>
+      </div>
+      <div class="library-controls">
+        <label for="library-search">Buscar recursos</label>
+        <input id="library-search" type="search" placeholder="Prueba: paráfrasis, APA, IA, datos…">
+        <div class="library-filters" aria-label="Filtrar recursos">
+          <button class="library-filter active" type="button" data-filter="todos" aria-pressed="true">Todos</button>
+          <button class="library-filter" type="button" data-filter="fuentes" aria-pressed="false">Fuentes y plagio</button>
+          <button class="library-filter" type="button" data-filter="ia" aria-pressed="false">Inteligencia artificial</button>
+          <button class="library-filter" type="button" data-filter="equipo" aria-pressed="false">Trabajo en equipo</button>
+          <button class="library-filter" type="button" data-filter="decisiones" aria-pressed="false">Decisiones éticas</button>
+        </div>
+      </div>
+      <div class="library-grid" id="library-grid">
+        <article class="surface resource-card" data-category="fuentes" data-search="citas fuentes plagio referencias paráfrasis comillas">
+          <span class="resource-tag">FUENTES Y PLAGIO</span><h3>Cita ideas, no solo palabras</h3>
+          <p>También debes reconocer una idea ajena cuando la explicas con tus propias palabras. Cambiar algunas palabras no convierte una idea en propia.</p>
+          <details><summary>Lista práctica</summary><ul><li>Marca las citas textuales con comillas y referencia.</li><li>Parafrasea después de comprender la fuente y sin copiar su estructura.</li><li>Registra autor, título, fecha y enlace desde el inicio.</li><li>Comprueba que cada cita aparezca en la lista de referencias.</li></ul></details>
+          <a class="resource-link" href="https://www.derecho.unam.mx/integridad-academica/estudiantes.php" target="_blank" rel="noopener noreferrer">Tutorial para estudiantes · UNAM ↗</a>
+        </article>
+        <article class="surface resource-card" data-category="fuentes" data-search="APA citas referencias bibliografía libros artículos web">
+          <span class="resource-tag">CITAS Y REFERENCIAS</span><h3>Arma referencias que se puedan verificar</h3>
+          <p>Una referencia permite que otra persona localice el material que consultaste. El formato depende del estilo solicitado por tu docente.</p>
+          <details><summary>Antes de entregar</summary><ul><li>Confirma qué estilo te pidieron: APA u otro.</li><li>Incluye los datos necesarios para localizar cada fuente.</li><li>No cites una obra que no consultaste como si la hubieras leído.</li><li>Verifica que citas y referencias coincidan.</li></ul></details>
+          <a class="resource-link" href="https://www.tic.unam.mx/enterate-cat/citas-y-referencias-correctas-en-trabajos-academicos/" target="_blank" rel="noopener noreferrer">Guía de citas · Portal TIC UNAM ↗</a>
+        </article>
+        <article class="surface resource-card" data-category="ia" data-search="inteligencia artificial IA generativa chatgpt herramientas fuentes referencias">
+          <span class="resource-tag">INTELIGENCIA ARTIFICIAL</span><h3>Usa la IA con transparencia</h3>
+          <p>La IA puede apoyar la lluvia de ideas o explicar conceptos, pero sus respuestas pueden contener errores y referencias inventadas. Las reglas de uso dependen de cada actividad.</p>
+          <details><summary>Uso responsable</summary><ul><li>Lee las instrucciones de la tarea antes de usarla.</li><li>Verifica afirmaciones importantes con fuentes fiables.</li><li>No presentes texto generado como trabajo propio si eso incumple las reglas.</li><li>Declara o documenta el uso cuando te lo pidan.</li><li>No introduzcas datos personales o información confidencial.</li></ul></details>
+          <a class="resource-link" href="https://www.unesco.org/es/digital-education/artificial-intelligence" target="_blank" rel="noopener noreferrer">Recursos de IA y educación · UNESCO ↗</a>
+        </article>
+        <article class="surface resource-card" data-category="equipo" data-search="equipo colaboración mérito contribuciones reparto tareas">
+          <span class="resource-tag">TRABAJO EN EQUIPO</span><h3>Haz visible la contribución de cada persona</h3>
+          <p>Colaborar no significa atribuir a todos el mismo trabajo si las aportaciones fueron distintas.</p>
+          <details><summary>Acuerdo breve para el equipo</summary><ul><li>Repartan tareas y fechas desde el inicio.</li><li>Acuerden qué tipo de ayuda y edición está permitida.</li><li>Dejen registro de cambios y decisiones importantes.</li><li>Si alguien se retrasa, hablen en privado y ajusten el plan.</li><li>Describan las contribuciones con honestidad.</li></ul></details>
+          <a class="resource-link" href="https://www.unamenlinea.unam.mx/recurso/84150-Etica-academica" target="_blank" rel="noopener noreferrer">Material de ética académica · UNAM ↗</a>
+        </article>
+        <article class="surface resource-card" data-category="decisiones" data-search="presión copiar honestidad decisión ética ayuda docente">
+          <span class="resource-tag">DECISIONES ÉTICAS</span><h3>Qué hacer si te presionan para copiar</h3>
+          <p>Puedes poner límites sin atacar a otras personas y buscar una alternativa que respete las reglas de la actividad.</p>
+          <details><summary>Una respuesta posible</summary><ul><li>Di con claridad qué parte puedes compartir: estudiar o explicar conceptos no es lo mismo que entregar el trabajo ajeno.</li><li>Propón repartir tareas o estudiar juntos dentro de las instrucciones.</li><li>Si la presión continúa, conserva los mensajes relevantes y pide orientación a un docente o coordinación.</li><li>Prioriza tu seguridad si temes represalias.</li></ul></details>
+          <a class="resource-link" href="https://www.derecho.unam.mx/integridad-academica/index-integridad.php" target="_blank" rel="noopener noreferrer">Recursos sobre integridad académica · UNAM ↗</a>
+        </article>
+        <article class="surface resource-card" data-category="decisiones" data-search="investigación datos evidencia hipótesis falsificar manipular resultados">
+          <span class="resource-tag">DATOS Y EVIDENCIA</span><h3>Presenta los resultados como son</h3>
+          <p>No cambies ni ocultes datos relevantes solo porque no apoyan tu hipótesis. Una limitación explicada es más útil que una conclusión engañosa.</p>
+          <details><summary>Revisión de integridad</summary><ul><li>Separa datos observados de tus interpretaciones.</li><li>Conserva el registro de cambios y cálculos.</li><li>Explica límites de la muestra o del método.</li><li>Corrige errores y avisa a quienes recibieron la versión anterior.</li></ul></details>
+          <a class="resource-link" href="https://siia.unam.mx/ods-unam/normas.php" target="_blank" rel="noopener noreferrer">Principios de honestidad e integridad · UNAM ↗</a>
+        </article>
+      </div>
+      <p class="empty-state library-empty" id="library-empty" hidden>No encontramos recursos. Prueba otra búsqueda o categoría.</p>
+      <p class="library-source-note">Los enlaces llevan a recursos universitarios o institucionales externos. Se abrirán en otra pestaña. Confirma siempre los requisitos específicos de tu curso.</p>
+    </section>
 
     <section class="safe-section" id="espacio-seguro">
       <div class="safe-inner">
