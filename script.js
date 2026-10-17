@@ -1,10 +1,21 @@
-/* Academic Honesty · prototipo educativo.
-   Calificaciones y apartados se guardan solo en localStorage del navegador.
-   No se transmiten datos a EBC ni a un equipo de apoyo. */
+/* Academic Honesty · datos académicos aislados por cuenta mediante Supabase. */
 "use strict";
 
 const $ = (selector, root = document) => root.querySelector(selector);
-const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const $ = (selector, root = document) => [...root.querySelectorAll(selector)];
+let db = null;
+let student = null;
+const databaseReady = (async () => {
+  try {
+    if (window.AH_AUTH_READY) await window.AH_AUTH_READY;
+    db = window.AH_SUPABASE || null;
+    student = window.AH_CURRENT_USER?.role === "student" ? window.AH_CURRENT_USER : null;
+    return Boolean(db && student?.id);
+  } catch (error) {
+    console.error("No se pudo preparar la sesión de datos:", error);
+    return false;
+  }
+})();
 // Aislamiento local por perfil: cada estudiante usa claves propias en este navegador.
 // La sesión se escribe por auth.js antes de mostrar la sección del estudiante.
 const profileStorageKey = (key) => {
@@ -44,7 +55,7 @@ $$(".main-nav a").forEach(link => link.addEventListener("click", () => {
 
 // Progress tracker
 const GRADE_KEY = "ah_v2_grades";
-let grades = safeParse(GRADE_KEY).filter(g => g && typeof g.subject === "string" && Number.isFinite(Number(g.grade)));
+let grades = [];
 const gradeForm = $("#grade-form");
 const gradeStatus = $("#grade-status");
 const updateFeedback = (average, list) => {
@@ -105,57 +116,73 @@ function renderGrades() {
     const val = document.createElement("span"); val.textContent = Number(g.grade).toLocaleString("es-MX", {maximumFractionDigits:1});
     const del = document.createElement("button"); del.type = "button"; del.className = "delete-grade"; del.textContent = "×"; del.setAttribute("aria-label", `Eliminar calificación de ${g.subject}`);
     del.addEventListener("click", () => {
-      grades = grades.filter(x => x.id !== g.id);
-      persist(GRADE_KEY, grades); renderGrades(); showToast("Calificación eliminada de este navegador.");
+      (async () => {
+        if (!await databaseReady) return showToast("No hay una sesión de estudiante activa.");
+        const { error } = await db.from("grades").delete().eq("id", g.id).eq("user_id", student.id);
+        if (error) { console.error(error); return showToast("No se pudo eliminar la calificación."); }
+        grades = grades.filter(x => x.id !== g.id); renderGrades(); showToast("Calificación eliminada.");
+      })();
     });
     score.append(val, del); li.append(details, score); list.append(li);
   });
 }
-gradeForm.addEventListener("submit", event => {
+gradeForm.addEventListener("submit", async event => {
   event.preventDefault();
   const subject = $("#subject").value.trim();
   const grade = Number($("#grade").value);
   if (!subject || !Number.isFinite(grade) || grade < 0 || grade > 100) {
     gradeStatus.textContent = "Escribe una materia y una calificación entre 0 y 100."; return;
   }
-  grades.push({ id: `${Date.now()}-${Math.random().toString(36).slice(2,8)}`, subject, grade, date: new Date().toLocaleDateString("es-MX") });
-  if (!persist(GRADE_KEY, grades)) {
-    grades.pop(); gradeStatus.textContent = "No se pudo guardar. Revisa la configuración de almacenamiento de tu navegador."; return;
-  }
-  renderGrades();
-  gradeForm.reset();
-  gradeStatus.textContent = "Calificación agregada. Tu retroalimentación se actualizó.";
+  if (!await databaseReady) { gradeStatus.textContent = "Inicia sesión con tu cuenta de estudiante para guardar."; return; }
+  const { data, error } = await db.from("grades").insert({ user_id: student.id, subject, grade }).select("id, subject, grade, created_at").single();
+  if (error) { console.error(error); gradeStatus.textContent = "No se pudo guardar la calificación en la cuenta."; return; }
+  grades.push({ id: data.id, subject: data.subject, grade: Number(data.grade), date: new Date(data.created_at).toLocaleDateString("es-MX") });
+  renderGrades(); gradeForm.reset(); gradeStatus.textContent = "Calificación guardada en tu cuenta.";
 });
-$("#clear-grades").addEventListener("click", () => {
+$("#clear-grades").addEventListener("click", async () => {
   if (!grades.length) return;
   if (confirm("¿Borrar todas las calificaciones guardadas en este navegador? Esta acción no se puede deshacer.")) {
-    grades = []; persist(GRADE_KEY, grades); renderGrades(); gradeStatus.textContent = "Tus registros locales se borraron.";
+    if (!await databaseReady) { gradeStatus.textContent = "No hay una sesión de estudiante activa."; return; }
+    const { error } = await db.from("grades").delete().eq("user_id", student.id);
+    if (error) { console.error(error); gradeStatus.textContent = "No se pudieron borrar las calificaciones."; return; }
+    grades = []; renderGrades(); gradeStatus.textContent = "Tus calificaciones se eliminaron de tu cuenta.";
   }
 });
 renderGrades();
+(async () => {
+  if (!await databaseReady) return;
+  const { data, error } = await db.from("grades").select("id, subject, grade, created_at").eq("user_id", student.id).order("created_at", { ascending: true });
+  if (error) { console.error(error); gradeStatus.textContent = "No se pudieron cargar las calificaciones."; return; }
+  grades = (data || []).map(g => ({ id: g.id, subject: g.subject, grade: Number(g.grade), date: new Date(g.created_at).toLocaleDateString("es-MX") }));
+  renderGrades();
+})();
 
-// Event registration demo (local only)
+// Event registrations stored per authenticated student
 const EVENTS = {
   integridad: { title: "¿Qué significa ser íntegro?", date: "22 de octubre de 2026" },
   dilemas: { title: "Dilemas académicos", date: "5 de noviembre de 2026" },
   ayuda: { title: "Cómo pedir ayuda a tiempo", date: "19 de noviembre de 2026" }
 };
 const REG_KEY = "ah_v2_event_registrations";
-let registrations = safeParse(REG_KEY);
+let registrations = [];
 const dialog = $("#register-dialog");
 function renderRegistrations() {
   const list = $("#my-registrations"); list.replaceChildren();
   if (!registrations.length) {
-    list.innerHTML = '<li class="empty-state">Todavía no has apartado ningún lugar en este navegador.</li>'; return;
+    list.innerHTML = '<li class="empty-state">Todavía no has apartado ningún lugar.</li>'; return;
   }
   registrations.forEach(reg => {
     const li = document.createElement("li"); li.className = "registration-item";
     const title = document.createElement("strong"); title.textContent = reg.eventTitle;
     const meta = document.createElement("span"); meta.textContent = `${reg.date} · ${reg.name}`;
-    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel-registration"; cancel.textContent = "Eliminar apartado local";
+    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel-registration"; cancel.textContent = "Cancelar inscripción";
     cancel.addEventListener("click", () => {
-      registrations = registrations.filter(r => r.id !== reg.id);
-      persist(REG_KEY, registrations); renderRegistrations(); showToast("Apartado eliminado de este navegador.");
+      (async () => {
+        if (!await databaseReady) return showToast("No hay una sesión activa.");
+        const { error } = await db.from("event_registrations").delete().eq("id", reg.id).eq("user_id", student.id);
+        if (error) { console.error(error); return showToast("No se pudo cancelar la inscripción."); }
+        registrations = registrations.filter(r => r.id !== reg.id); renderRegistrations(); showToast("Inscripción cancelada.");
+      })();
     });
     li.append(title, meta, cancel); list.append(li);
   });
@@ -170,7 +197,7 @@ $$(".register-trigger").forEach(button => button.addEventListener("click", () =>
   $("#register-event-id").value = button.dataset.event;
   if (dialog.showModal) dialog.showModal(); else alert("Tu navegador no admite el formulario emergente. Prueba con un navegador actualizado.");
 }));
-$("#register-form").addEventListener("submit", event => {
+$("#register-form").addEventListener("submit", async event => {
   event.preventDefault();
   const eventId = $("#register-event-id").value, eventInfo = EVENTS[eventId];
   const name = $("#register-name").value.trim(), email = $("#register-email").value.trim().toLowerCase();
@@ -179,17 +206,23 @@ $("#register-form").addEventListener("submit", event => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     $("#register-status").textContent = "Escribe un correo válido."; return;
   }
-  if (registrations.some(r => r.eventId === eventId && r.email === email)) {
-    $("#register-status").textContent = "Este correo ya tiene un apartado local para ese evento."; return;
+  if (!await databaseReady) { $("#register-status").textContent = "Inicia sesión con tu cuenta de estudiante para inscribirte."; return; }
+  if (registrations.some(r => r.eventId === eventId)) {
+    $("#register-status").textContent = "Ya tienes una inscripción para este evento."; return;
   }
-  const reg = { id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`, eventId, eventTitle: eventInfo.title, date: eventInfo.date, name, email };
-  registrations.push(reg);
-  if (!persist(REG_KEY, registrations)) {
-    registrations.pop(); $("#register-status").textContent = "No se pudo guardar el apartado en este navegador."; return;
-  }
-  renderRegistrations(); dialog.close(); showToast("Apartado guardado localmente. No es una reserva confirmada.");
+  const { data, error } = await db.from("event_registrations").insert({ user_id: student.id, event_key: eventId, full_name: name, email }).select("id, event_key, full_name, email, created_at").single();
+  if (error) { console.error(error); $("#register-status").textContent = "No se pudo guardar la inscripción en tu cuenta."; return; }
+  registrations.push({ id: data.id, eventId: data.event_key, eventTitle: eventInfo.title, date: eventInfo.date, name: data.full_name, email: data.email });
+  renderRegistrations(); dialog.close(); showToast("Inscripción guardada en tu cuenta.");
 });
 renderRegistrations();
+(async () => {
+  if (!await databaseReady) return;
+  const { data, error } = await db.from("event_registrations").select("id, event_key, full_name, email, created_at").eq("user_id", student.id).order("created_at", { ascending: true });
+  if (error) { console.error(error); $("#register-status").textContent = "No se pudieron cargar tus inscripciones."; return; }
+  registrations = (data || []).map(r => ({ id: r.id, eventId: r.event_key, eventTitle: EVENTS[r.event_key]?.title || r.event_key, date: EVENTS[r.event_key]?.date || new Date(r.created_at).toLocaleDateString("es-MX"), name: r.full_name, email: r.email }));
+  renderRegistrations();
+})();
 
 // Ethical quests: 3 scenarios, 5 questions each
 const quests = [
@@ -341,6 +374,20 @@ function showQuestResult() {
   selected.forEach(opt => { totals.integrity += opt[2].integrity; totals.empathy += opt[2].empathy; totals.responsibility += opt[2].responsibility; });
   const percent = key => Math.round((totals[key] / max) * 100);
   const overall = Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100);
+  (async () => {
+    if (!await databaseReady) return;
+    const { error } = await db.from("quest_results").insert({
+      user_id: student.id,
+      quest_key: `quest_${String(currentQuest + 1).padStart(2, "0")}`,
+      quest_title: quest.title,
+      score: overall,
+      answers: answers.map((answer, index) => ({ question: index + 1, option: answer }))
+    });
+    if (error) {
+      console.error("No se pudo guardar el resultado del dilema:", error);
+      showToast("El resultado se mostró, pero no se pudo guardar en tu cuenta.");
+    } else showToast("Resultado del dilema guardado en tu cuenta.");
+  })();
   $("#result-title").textContent = overall >= 85 ? "Tus decisiones muestran una intención responsable." : overall >= 60 ? "Hay buenas bases y algunas tensiones que vale la pena revisar." : "Este escenario revela decisiones que puedes reconsiderar.";
   $("#result-summary").textContent = `En “${quest.title}”, tus elecciones reflejan un ${percent("integrity")}% de consideración de la integridad, un ${percent("empathy")}% de perspectiva hacia otras personas y un ${percent("responsibility")}% de responsabilidad. No es una calificación moral: es una guía para observar tus criterios y explorar alternativas.`;
   $("#result-integrity").textContent = `${percent("integrity")}%`;
