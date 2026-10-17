@@ -355,12 +355,21 @@ function renderQuestion() {
       answers[questionIndex] = option[0];
       $$(".answer-option", fieldset).forEach(x => x.classList.toggle("selected", $("input", x).checked));
       $("#quest-next").disabled = false; $("#answer-status").textContent = "";
+      const selected = q.options.find(item => item[0] === option[0]);
+      $("#choice-consequence-text").textContent = selected ? selected[3] : "Considera cómo podría afectar esta decisión a otras personas.";
+      $("#choice-consequence").hidden = false;
     });
   });
   $("#quest-back").disabled = questionIndex === 0;
   $("#quest-next").textContent = questionIndex === quest.questions.length - 1 ? "Ver mi retroalimentación ↗" : "Confirmar y continuar →";
   $("#quest-next").disabled = !answers[questionIndex];
   $("#answer-status").textContent = "";
+  $("#choice-consequence").hidden = !answers[questionIndex];
+  if (answers[questionIndex]) {
+    const chosen = q.options.find(item => item[0] === answers[questionIndex]);
+    $("#choice-consequence-text").textContent = chosen ? chosen[3] : "Considera cómo podría afectar esta decisión a otras personas.";
+  }
+  restoreQuestReflection();
 }
 $$(".quest-choice").forEach(button => button.addEventListener("click", () => selectQuest(Number(button.dataset.quest))));
 $("#quest-back").addEventListener("click", () => { if (questionIndex > 0) { questionIndex--; renderQuestion(); } });
@@ -375,6 +384,7 @@ function showQuestResult() {
   const max = quest.questions.length * 2;
   const totals = { integrity: 0, empathy: 0, responsibility: 0 };
   selected.forEach(opt => { totals.integrity += opt[2].integrity; totals.empathy += opt[2].empathy; totals.responsibility += opt[2].responsibility; });
+  const history = readDemo('quest_history', []); const previous = history.filter(item => item.quest !== currentQuest); previous.push({ quest: currentQuest, completedAt: new Date().toISOString(), score: Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100) }); writeDemo('quest_history', previous); updateAchievements();
   const percent = key => Math.round((totals[key] / max) * 100);
   const overall = Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100);
   (async () => {
@@ -452,3 +462,25 @@ window.addEventListener("ah-student-ready", () => {
   loadGradesForCurrentStudent();
   loadRegistrationsForCurrentStudent();
 });
+
+// Nuevas herramientas de aprendizaje; los datos de demostración quedan separados por perfil local.
+const demoKey = name => profileStorageKey('ah_' + name + '_v1');
+const readDemo = (name, fallback) => { try { const value = JSON.parse(localStorage.getItem(demoKey(name)) || 'null'); return value ?? fallback; } catch { return fallback; } };
+const writeDemo = (name, value) => { try { localStorage.setItem(demoKey(name), JSON.stringify(value)); return true; } catch { return false; } };
+function updateAchievements() {
+  const results = readDemo('quest_history', []); const completed = new Set(results.map(item => item.quest));
+  const earned = [{title:'Primera reflexión',detail:'Completa un dilema',icon:'◇',unlocked:results.length>0},{title:'Explorador ético',detail:'Completa los tres dilemas',icon:'✦',unlocked:completed.size>=3},{title:'Constancia',detail:'Completa un reto semanal',icon:'◎',unlocked:Boolean(readDemo('weekly_challenge',null))},{title:'Plan personal',detail:'Guarda tu compromiso',icon:'↗',unlocked:Boolean(readDemo('commitment',null))}];
+  const list=$('#achievement-list'); if(list){list.replaceChildren();earned.forEach(item=>{const card=document.createElement('div');card.className='achievement-badge '+(item.unlocked?'earned':'locked');const icon=document.createElement('span');icon.textContent=item.unlocked?'✓':item.icon;const title=document.createElement('strong');title.textContent=item.title;const detail=document.createElement('small');detail.textContent=item.unlocked?'Logro obtenido':item.detail;card.append(icon,title,detail);list.append(card);});}
+  if($('#dashboard-badge-count')) $('#dashboard-badge-count').textContent=earned.filter(item=>item.unlocked).length;
+  if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=results.length;
+}
+function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value;$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=saved.value+(saved.detail?' Primer paso: '+saved.detail:'');}}
+$('#challenge-form').addEventListener('submit',event=>{event.preventDefault();const response=$('#challenge-response').value.trim();if(!response)return;const now=new Date();const start=new Date(now.getFullYear(),0,1);const week=now.getFullYear()+'-'+String(Math.ceil((((now-start)/86400000)+start.getDay()+1)/7)).padStart(2,'0');if(!writeDemo('weekly_challenge',{week,response,completedAt:now.toISOString()})){$('#challenge-status').textContent='No se pudo guardar en este navegador.';return;}$('#challenge-status').textContent='Reto completado. Gracias por convertir una idea en una acción concreta.';showToast('Reto semanal completado.');updateAchievements();});
+$('#commitment-form').addEventListener('submit',event=>{event.preventDefault();const value=$('#commitment-value').value;if(!value)return;if(!writeDemo('commitment',{value,detail:$('#commitment-detail').value.trim(),updatedAt:new Date().toISOString()})){$('#commitment-status').textContent='No se pudo guardar en este navegador.';return;}$('#commitment-status').textContent='Tu compromiso quedó guardado en este perfil de demostración.';renderCommitment();updateAchievements();showToast('Compromiso guardado.');});
+$('#edit-commitment').addEventListener('click',()=>{$('#commitment-form').hidden=false;$('#commitment-saved').hidden=true;});
+function filterLibrary(){const query=$('#library-search').value.trim().toLocaleLowerCase('es-MX');const category=$('.library-filter.active')?.dataset.filter||'todos';let shown=0;$$('.resource-card').forEach(card=>{const ok=(category==='todos'||card.dataset.category===category)&&(!query||(card.dataset.search+' '+card.textContent).toLocaleLowerCase('es-MX').includes(query));card.hidden=!ok;if(ok)shown++;});$('#library-empty').hidden=shown>0;}
+$('#library-search').addEventListener('input',filterLibrary);
+$$('.library-filter').forEach(button=>button.addEventListener('click',()=>{$$('.library-filter').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});filterLibrary();}));
+$('#quest-reflection').addEventListener('change',()=>{const saved=readDemo('reflections',{});saved['quest_'+(currentQuest+1)]=$('#quest-reflection').value.slice(0,400);writeDemo('reflections',saved);});
+function restoreQuestReflection(){const saved=readDemo('reflections',{});$('#quest-reflection').value=saved['quest_'+(currentQuest+1)]||'';}
+updateAchievements();renderCommitment();
