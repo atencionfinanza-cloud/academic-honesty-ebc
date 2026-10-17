@@ -479,7 +479,7 @@ function showQuestResult() {
     if (error) {
       console.error("No se pudo guardar el resultado del dilema:", error);
       showToast("El resultado se mostró, pero no se pudo guardar en tu cuenta.");
-    } else showToast("Resultado del dilema guardado en tu cuenta.");
+    } else { showToast("Resultado del dilema guardado en tu cuenta."); updateAchievements(); }
   })();
   $("#result-title").textContent = overall >= 85 ? "Tus decisiones muestran una intención responsable." : overall >= 60 ? "Hay buenas bases y algunas tensiones que vale la pena revisar." : "Este escenario revela decisiones que puedes reconsiderar.";
   $("#result-summary").textContent = `En “${quest.title}”, tus elecciones reflejan un ${percent("integrity")}% de consideración de la integridad, un ${percent("empathy")}% de perspectiva hacia otras personas y un ${percent("responsibility")}% de responsabilidad. No es una calificación moral: es una guía para observar tus criterios y explorar alternativas.`;
