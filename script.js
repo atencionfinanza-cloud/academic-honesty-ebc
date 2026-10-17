@@ -15,12 +15,20 @@ async function databaseReady() {
     return false;
   }
 }
-// Aislamiento local por perfil: cada estudiante usa claves propias en este navegador.
-// La sesión se escribe por auth.js antes de mostrar la sección del estudiante.
+// Aislamiento local por perfil: usar la sesión real que auth.js expone.
+// No depender de ah_demo_session_v1: auth.js no escribe esa clave, por lo que
+// hacerlo enviaba los datos locales de todos los estudiantes a "admin-demo".
 const profileStorageKey = (key) => {
-  let session = null;
-  try { session = JSON.parse(localStorage.getItem("ah_demo_session_v1") || "null"); } catch {}
-  const profile = session?.role === "student" && session.id ? String(session.id) : "admin-demo";
+  const current = window.AH_CURRENT_USER;
+  let legacySession = null;
+  try { legacySession = JSON.parse(localStorage.getItem("ah_demo_session_v1") || "null"); } catch {}
+  const profile = current?.role === "student" && current.id
+    ? String(current.id)
+    : legacySession?.role === "student" && legacySession.id
+      ? String(legacySession.id)
+      : current?.role === "admin"
+        ? "admin"
+        : "sin-sesion";
   return `${key}__${profile}`;
 };
 const safeParse = (key, fallback = []) => {
