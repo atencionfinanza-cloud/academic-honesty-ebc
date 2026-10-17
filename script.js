@@ -18,10 +18,16 @@ async function databaseReady() {
 // Aislamiento local por perfil: cada estudiante usa claves propias en este navegador.
 // La sesión se escribe por auth.js antes de mostrar la sección del estudiante.
 const profileStorageKey = (key) => {
+  // Prefer the live authenticated identity; legacy session storage is only a fallback.
+  const current = window.AH_CURRENT_USER;
   let session = null;
   try { session = JSON.parse(localStorage.getItem("ah_demo_session_v1") || "null"); } catch {}
-  const profile = session?.role === "student" && session.id ? String(session.id) : "admin-demo";
-  return `${key}__${profile}`;
+  const profile = current?.role === "student" && current.id
+    ? String(current.id)
+    : session?.role === "student" && session.id
+      ? String(session.id)
+      : current?.role === "admin" ? "admin-demo" : "sin-sesion";
+  return key + "__" + profile;
 };
 const safeParse = (key, fallback = []) => {
   try { const value = JSON.parse(localStorage.getItem(profileStorageKey(key)) || "null"); return Array.isArray(value) ? value : fallback; }
@@ -39,6 +45,36 @@ const showToast = (message) => {
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 3200);
 };
+
+const demoKey = name => profileStorageKey('ah_' + name + '_v1');
+const readDemo = (name, fallback) => { try { const value = JSON.parse(localStorage.getItem(demoKey(name)) || 'null'); return value ?? fallback; } catch { return fallback; } };
+const writeDemo = (name, value) => { try { localStorage.setItem(demoKey(name), JSON.stringify(value)); return true; } catch { return false; } };
+
+// Handle local demo forms before other page modules.
+
+$('#challenge-form')?.addEventListener('submit', event => {
+  event.preventDefault(); event.stopPropagation();
+  const response = $('#challenge-response')?.value.trim();
+  if (!response) return;
+  const saved = readDemo('weekly_challenge', null);
+  if (saved && saved.week === currentWeekKey()) { $('#challenge-status').textContent = 'Ya completaste el reto de esta semana.'; return; }
+  const now = new Date();
+  if (!writeDemo('weekly_challenge', { week: currentWeekKey(now), response, completedAt: now.toISOString() })) {
+    $('#challenge-status').textContent = 'No se pudo guardar en este navegador. Comprueba el espacio disponible y vuelve a intentarlo.'; return;
+  }
+  $('#challenge-status').textContent = 'Reto semanal guardado en este perfil de demostración.';
+  renderWeeklyChallenge(); updateAchievements(); showToast('Reto semanal completado.');
+});
+$('#commitment-form')?.addEventListener('submit', event => {
+  event.preventDefault(); event.stopPropagation();
+  const value = $('#commitment-value')?.value;
+  if (!value) return;
+  if (!writeDemo('commitment', { value, detail: $('#commitment-detail')?.value.trim() || '', updatedAt: new Date().toISOString() })) {
+    $('#commitment-status').textContent = 'No se pudo guardar en este navegador.'; return;
+  }
+  $('#commitment-status').textContent = 'Tu compromiso quedó guardado en este perfil de demostración.';
+  renderCommitment(); updateAchievements(); showToast('Compromiso guardado.');
+});
 
 // Responsive navigation
 $("#nav-toggle").addEventListener("click", () => {
@@ -464,9 +500,7 @@ window.addEventListener("ah-student-ready", () => {
 });
 
 // Nuevas herramientas de aprendizaje; los datos de demostración quedan separados por perfil local.
-const demoKey = name => profileStorageKey('ah_' + name + '_v1');
-const readDemo = (name, fallback) => { try { const value = JSON.parse(localStorage.getItem(demoKey(name)) || 'null'); return value ?? fallback; } catch { return fallback; } };
-const writeDemo = (name, value) => { try { localStorage.setItem(demoKey(name), JSON.stringify(value)); return true; } catch { return false; } };
+
 function currentWeekKey(date = new Date()) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - day);
@@ -494,8 +528,8 @@ function renderWeeklyChallenge() {
   submit.textContent = completedThisWeek ? 'Reto de esta semana completado' : 'Completar reto ↗';
   $('#challenge-status').textContent = completedThisWeek ? 'Ya completaste el reto de esta semana. Tu respuesta quedó guardada en este perfil de demostración.' : '';
 }
-$('#challenge-form').addEventListener('submit',event=>{event.preventDefault();const response=$('#challenge-response').value.trim();if(!response)return;const saved=readDemo('weekly_challenge',null);if(saved && saved.week===currentWeekKey()){renderWeeklyChallenge();return;}const now=new Date();if(!writeDemo('weekly_challenge',{week:currentWeekKey(now),response,completedAt:now.toISOString()})){$('#challenge-status').textContent='No se pudo guardar en este navegador. Comprueba el espacio disponible y vuelve a intentarlo.';return;}renderWeeklyChallenge();showToast('Reto semanal completado.');updateAchievements();});
-$('#commitment-form').addEventListener('submit',event=>{event.preventDefault();const value=$('#commitment-value').value;if(!value)return;if(!writeDemo('commitment',{value,detail:$('#commitment-detail').value.trim(),updatedAt:new Date().toISOString()})){$('#commitment-status').textContent='No se pudo guardar en este navegador.';return;}$('#commitment-status').textContent='Tu compromiso quedó guardado en este perfil de demostración.';renderCommitment();updateAchievements();showToast('Compromiso guardado.');});
+
+
 $('#edit-commitment').addEventListener('click',()=>{$('#commitment-form').hidden=false;$('#commitment-saved').hidden=true;});
 function filterLibrary(){const query=$('#library-search').value.trim().toLocaleLowerCase('es-MX');const category=$('.library-filter.active')?.dataset.filter||'todos';let shown=0;$$('.resource-card').forEach(card=>{const ok=(category==='todos'||card.dataset.category===category)&&(!query||(card.dataset.search+' '+card.textContent).toLocaleLowerCase('es-MX').includes(query));card.hidden=!ok;if(ok)shown++;});$('#library-empty').hidden=shown>0;}
 $('#library-search').addEventListener('input',filterLibrary);
