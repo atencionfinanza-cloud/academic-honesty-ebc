@@ -464,7 +464,7 @@ function showQuestResult() {
   const max = quest.questions.length * 2;
   const totals = { integrity: 0, empathy: 0, responsibility: 0 };
   selected.forEach(opt => { totals.integrity += opt[2].integrity; totals.empathy += opt[2].empathy; totals.responsibility += opt[2].responsibility; });
-  const history = readDemo('quest_history', []); const previous = history.filter(item => item.quest !== currentQuest); previous.push({ quest: currentQuest, completedAt: new Date().toISOString(), score: Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100) }); writeDemo('quest_history', previous); updateAchievements();
+  updateAchievements();
   const percent = key => Math.round((totals[key] / max) * 100);
   const overall = Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100);
   (async () => {
@@ -567,13 +567,26 @@ function currentWeekKey(date = new Date()) {
   const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
   return `${d.getUTCFullYear()}-${String(week).padStart(2, '0')}`;
 }
-function updateAchievements() {
-  const results = readDemo('quest_history', []); const completed = new Set(results.map(item => item.quest));
+async function updateAchievements() {
+  const studentId = getStudent()?.id;
+  if (!await databaseReady() || !studentId) return;
+  const { data: results, error } = await db.from('quest_results')
+    .select('quest_key, score, created_at').eq('user_id', studentId).order('created_at', { ascending: true });
+  if (error || getStudent()?.id !== studentId) {
+    if (error) console.error('No se pudieron cargar los logros:', error);
+    return;
+  }
+  const completed = new Set((results || []).map(item => item.quest_key));
   const challenge = readDemo('weekly_challenge', null);
-  const earned = [{title:'Primera reflexión',detail:'Completa un dilema',icon:'◇',unlocked:results.length>0},{title:'Explorador ético',detail:'Completa los tres dilemas',icon:'✦',unlocked:completed.size>=3},{title:'Constancia',detail:'Completa un reto semanal',icon:'◎',unlocked:Boolean(challenge && challenge.week === currentWeekKey())},{title:'Plan personal',detail:'Guarda tu compromiso',icon:'↗',unlocked:Boolean(readDemo('commitment',null))}];
+  const earned = [
+    {title:'Primer dilema',detail:'Completa un dilema',icon:'◇',unlocked:(results || []).length>0},
+    {title:'Explorador ético',detail:'Completa los tres dilemas',icon:'✦',unlocked:['quest_01','quest_02','quest_03'].every(key => completed.has(key))},
+    {title:'Constancia',detail:'Completa un reto semanal',icon:'◎',unlocked:Boolean(challenge && challenge.week === currentWeekKey())},
+    {title:'Plan personal',detail:'Guarda tu compromiso',icon:'↗',unlocked:Boolean(readDemo('commitment',null))}
+  ];
   const list=$('#achievement-list'); if(list){list.replaceChildren();earned.forEach(item=>{const card=document.createElement('div');card.className='achievement-badge '+(item.unlocked?'earned':'locked');const icon=document.createElement('span');icon.textContent=item.unlocked?'✓':item.icon;const title=document.createElement('strong');title.textContent=item.title;const detail=document.createElement('small');detail.textContent=item.unlocked?'Logro obtenido':item.detail;card.append(icon,title,detail);list.append(card);});}
   if($('#dashboard-badge-count')) $('#dashboard-badge-count').textContent=earned.filter(item=>item.unlocked).length;
-  if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=results.length;
+  if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=(results || []).length;
 }
 function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value;$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=saved.value+(saved.detail?' Primer paso: '+saved.detail:'');}}
 let weeklyChallengeState = 'loading';
