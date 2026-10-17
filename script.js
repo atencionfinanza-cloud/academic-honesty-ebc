@@ -511,7 +511,7 @@ function filterLibrary(){
   const query = search.value.trim().toLocaleLowerCase('es-MX');
   const activeFilter = $('.library-filter.active');
   const category = activeFilter?.dataset.filter || 'todos';
-  const cards = $('.resource-card');
+  const cards = $$('.resource-card');
   let shown = 0;
   cards.forEach(card => {
     const searchableText = `${card.dataset.search || ''} ${card.textContent || ''}`.toLocaleLowerCase('es-MX');
@@ -527,8 +527,8 @@ function filterLibrary(){
     : 'No encontramos recursos con esos criterios. Prueba otra búsqueda o selecciona “Todos”.';
 }
 $('#library-search')?.addEventListener('input',filterLibrary);
-$('.library-filter').forEach(button=>button.addEventListener('click',()=>{
-  $('.library-filter').forEach(item=>{
+$$('.library-filter').forEach(button=>button.addEventListener('click',()=>{
+  $$('.library-filter').forEach(item=>{
     const active = item === button;
     item.classList.toggle('active',active);
     item.setAttribute('aria-pressed',String(active));
