@@ -467,20 +467,39 @@ window.addEventListener("ah-student-ready", () => {
 const demoKey = name => profileStorageKey('ah_' + name + '_v1');
 const readDemo = (name, fallback) => { try { const value = JSON.parse(localStorage.getItem(demoKey(name)) || 'null'); return value ?? fallback; } catch { return fallback; } };
 const writeDemo = (name, value) => { try { localStorage.setItem(demoKey(name), JSON.stringify(value)); return true; } catch { return false; } };
+function currentWeekKey(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7; d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const week = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-${String(week).padStart(2, '0')}`;
+}
 function updateAchievements() {
   const results = readDemo('quest_history', []); const completed = new Set(results.map(item => item.quest));
-  const earned = [{title:'Primera reflexión',detail:'Completa un dilema',icon:'◇',unlocked:results.length>0},{title:'Explorador ético',detail:'Completa los tres dilemas',icon:'✦',unlocked:completed.size>=3},{title:'Constancia',detail:'Completa un reto semanal',icon:'◎',unlocked:Boolean(readDemo('weekly_challenge',null))},{title:'Plan personal',detail:'Guarda tu compromiso',icon:'↗',unlocked:Boolean(readDemo('commitment',null))}];
+  const challenge = readDemo('weekly_challenge', null);
+  const earned = [{title:'Primera reflexión',detail:'Completa un dilema',icon:'◇',unlocked:results.length>0},{title:'Explorador ético',detail:'Completa los tres dilemas',icon:'✦',unlocked:completed.size>=3},{title:'Constancia',detail:'Completa un reto semanal',icon:'◎',unlocked:Boolean(challenge && challenge.week === currentWeekKey())},{title:'Plan personal',detail:'Guarda tu compromiso',icon:'↗',unlocked:Boolean(readDemo('commitment',null))}];
   const list=$('#achievement-list'); if(list){list.replaceChildren();earned.forEach(item=>{const card=document.createElement('div');card.className='achievement-badge '+(item.unlocked?'earned':'locked');const icon=document.createElement('span');icon.textContent=item.unlocked?'✓':item.icon;const title=document.createElement('strong');title.textContent=item.title;const detail=document.createElement('small');detail.textContent=item.unlocked?'Logro obtenido':item.detail;card.append(icon,title,detail);list.append(card);});}
   if($('#dashboard-badge-count')) $('#dashboard-badge-count').textContent=earned.filter(item=>item.unlocked).length;
   if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=results.length;
 }
 function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value;$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=saved.value+(saved.detail?' Primer paso: '+saved.detail:'');}}
-$('#challenge-form').addEventListener('submit',event=>{event.preventDefault();const response=$('#challenge-response').value.trim();if(!response)return;const now=new Date();const start=new Date(now.getFullYear(),0,1);const week=now.getFullYear()+'-'+String(Math.ceil((((now-start)/86400000)+start.getDay()+1)/7)).padStart(2,'0');if(!writeDemo('weekly_challenge',{week,response,completedAt:now.toISOString()})){$('#challenge-status').textContent='No se pudo guardar en este navegador.';return;}$('#challenge-status').textContent='Reto completado. Gracias por convertir una idea en una acción concreta.';showToast('Reto semanal completado.');updateAchievements();});
+function renderWeeklyChallenge() {
+  const saved = readDemo('weekly_challenge', null);
+  const completedThisWeek = Boolean(saved && saved.week === currentWeekKey());
+  const form = $('#challenge-form');
+  $('#challenge-response').value = completedThisWeek ? saved.response : '';
+  $('#challenge-response').disabled = completedThisWeek;
+  const submit = form.querySelector('button[type="submit"]');
+  submit.disabled = completedThisWeek;
+  submit.textContent = completedThisWeek ? 'Reto de esta semana completado' : 'Completar reto ↗';
+  $('#challenge-status').textContent = completedThisWeek ? 'Ya completaste el reto de esta semana. Tu respuesta quedó guardada en este perfil de demostración.' : '';
+}
+$('#challenge-form').addEventListener('submit',event=>{event.preventDefault();const response=$('#challenge-response').value.trim();if(!response)return;const saved=readDemo('weekly_challenge',null);if(saved && saved.week===currentWeekKey()){renderWeeklyChallenge();return;}const now=new Date();if(!writeDemo('weekly_challenge',{week:currentWeekKey(now),response,completedAt:now.toISOString()})){$('#challenge-status').textContent='No se pudo guardar en este navegador. Comprueba el espacio disponible y vuelve a intentarlo.';return;}renderWeeklyChallenge();showToast('Reto semanal completado.');updateAchievements();});
 $('#commitment-form').addEventListener('submit',event=>{event.preventDefault();const value=$('#commitment-value').value;if(!value)return;if(!writeDemo('commitment',{value,detail:$('#commitment-detail').value.trim(),updatedAt:new Date().toISOString()})){$('#commitment-status').textContent='No se pudo guardar en este navegador.';return;}$('#commitment-status').textContent='Tu compromiso quedó guardado en este perfil de demostración.';renderCommitment();updateAchievements();showToast('Compromiso guardado.');});
 $('#edit-commitment').addEventListener('click',()=>{$('#commitment-form').hidden=false;$('#commitment-saved').hidden=true;});
 function filterLibrary(){const query=$('#library-search').value.trim().toLocaleLowerCase('es-MX');const category=$('.library-filter.active')?.dataset.filter||'todos';let shown=0;$$('.resource-card').forEach(card=>{const ok=(category==='todos'||card.dataset.category===category)&&(!query||(card.dataset.search+' '+card.textContent).toLocaleLowerCase('es-MX').includes(query));card.hidden=!ok;if(ok)shown++;});$('#library-empty').hidden=shown>0;}
 $('#library-search').addEventListener('input',filterLibrary);
 $$('.library-filter').forEach(button=>button.addEventListener('click',()=>{$$('.library-filter').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});filterLibrary();}));
-$('#quest-reflection').addEventListener('change',()=>{const saved=readDemo('reflections',{});saved['quest_'+(currentQuest+1)]=$('#quest-reflection').value.slice(0,400);writeDemo('reflections',saved);});
+$('#quest-reflection').addEventListener('input',()=>{const saved=readDemo('reflections',{});saved['quest_'+(currentQuest+1)]=$('#quest-reflection').value.slice(0,400);if(!writeDemo('reflections',saved)) showToast('No se pudo guardar la reflexión en este navegador.');});
 function restoreQuestReflection(){const saved=readDemo('reflections',{});$('#quest-reflection').value=saved['quest_'+(currentQuest+1)]||'';}
-updateAchievements();renderCommitment();
+renderWeeklyChallenge();updateAchievements();renderCommitment();
