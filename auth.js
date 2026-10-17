@@ -11,6 +11,8 @@
 
   let supabase = null;
   let activeUser = null;
+  window.AH_SUPABASE = null;
+  window.AH_CURRENT_USER = null;
   let lastQrUser = null;
   let cameraStream = null;
   let scannerFrame = null;
@@ -59,6 +61,7 @@
 
   function showStudent(user) {
     activeUser = user;
+    window.AH_CURRENT_USER = user;
     hidePageSections();
 
     if (el('#contenido')) el('#contenido').hidden = false;
@@ -90,6 +93,7 @@
       name: 'Administrador'
     };
 
+    window.AH_CURRENT_USER = activeUser;
     hidePageSections();
     if (el('#admin-shell')) el('#admin-shell').hidden = false;
 
@@ -134,6 +138,7 @@
     if (error) console.error('Error al cerrar sesión:', error);
 
     activeUser = null;
+    window.AH_CURRENT_USER = null;
     showGate();
 
     if (el('#login-password')) el('#login-password').value = '';
@@ -546,6 +551,7 @@
       }
 
       supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      window.AH_SUPABASE = supabase;
 
       const { data, error } = await supabase.auth.getSession();
       if (error) throw error;
@@ -606,7 +612,7 @@
     if (window.supabase?.createClient) {
       // Supabase se inicializa antes de registrar este listener.
       supabase?.auth.onAuthStateChange((_event, session) => {
-        if (!session) showGate();
+        if (!session) { window.AH_CURRENT_USER = null; showGate(); }
       });
     }
   }
