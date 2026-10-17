@@ -15,12 +15,19 @@ async function databaseReady() {
     return false;
   }
 }
-// Aislamiento local por perfil: cada estudiante usa claves propias en este navegador.
-// La sesión se escribe por auth.js antes de mostrar la sección del estudiante.
+// Aislamiento local por perfil: usar primero la sesión autenticada que expone auth.js.
+// La clave antigua se conserva solo como compatibilidad para datos de demostración previos.
 const profileStorageKey = (key) => {
-  let session = null;
-  try { session = JSON.parse(localStorage.getItem("ah_demo_session_v1") || "null"); } catch {}
-  const profile = session?.role === "student" && session.id ? String(session.id) : "admin-demo";
+  const current = window.AH_CURRENT_USER;
+  let legacySession = null;
+  try { legacySession = JSON.parse(localStorage.getItem("ah_demo_session_v1") || "null"); } catch {}
+  const profile = current?.role === "student" && current.id
+    ? String(current.id)
+    : legacySession?.role === "student" && legacySession.id
+      ? String(legacySession.id)
+      : current?.role === "admin"
+        ? "admin"
+        : "sin-sesion";
   return `${key}__${profile}`;
 };
 const safeParse = (key, fallback = []) => {
@@ -497,9 +504,37 @@ function renderWeeklyChallenge() {
 $('#challenge-form').addEventListener('submit',event=>{event.preventDefault();const response=$('#challenge-response').value.trim();if(!response)return;const saved=readDemo('weekly_challenge',null);if(saved && saved.week===currentWeekKey()){renderWeeklyChallenge();return;}const now=new Date();if(!writeDemo('weekly_challenge',{week:currentWeekKey(now),response,completedAt:now.toISOString()})){$('#challenge-status').textContent='No se pudo guardar en este navegador. Comprueba el espacio disponible y vuelve a intentarlo.';return;}renderWeeklyChallenge();showToast('Reto semanal completado.');updateAchievements();});
 $('#commitment-form').addEventListener('submit',event=>{event.preventDefault();const value=$('#commitment-value').value;if(!value)return;if(!writeDemo('commitment',{value,detail:$('#commitment-detail').value.trim(),updatedAt:new Date().toISOString()})){$('#commitment-status').textContent='No se pudo guardar en este navegador.';return;}$('#commitment-status').textContent='Tu compromiso quedó guardado en este perfil de demostración.';renderCommitment();updateAchievements();showToast('Compromiso guardado.');});
 $('#edit-commitment').addEventListener('click',()=>{$('#commitment-form').hidden=false;$('#commitment-saved').hidden=true;});
-function filterLibrary(){const query=$('#library-search').value.trim().toLocaleLowerCase('es-MX');const category=$('.library-filter.active')?.dataset.filter||'todos';let shown=0;$$('.resource-card').forEach(card=>{const ok=(category==='todos'||card.dataset.category===category)&&(!query||(card.dataset.search+' '+card.textContent).toLocaleLowerCase('es-MX').includes(query));card.hidden=!ok;if(ok)shown++;});$('#library-empty').hidden=shown>0;}
-$('#library-search').addEventListener('input',filterLibrary);
-$$('.library-filter').forEach(button=>button.addEventListener('click',()=>{$$('.library-filter').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});filterLibrary();}));
+function filterLibrary(){
+  const search = $('#library-search');
+  const emptyState = $('#library-empty');
+  if (!search || !emptyState) return;
+  const query = search.value.trim().toLocaleLowerCase('es-MX');
+  const activeFilter = $('.library-filter.active');
+  const category = activeFilter?.dataset.filter || 'todos';
+  const cards = $$('.resource-card');
+  let shown = 0;
+  cards.forEach(card => {
+    const searchableText = `${card.dataset.search || ''} ${card.textContent || ''}`.toLocaleLowerCase('es-MX');
+    const matchesCategory = category === 'todos' || card.dataset.category === category;
+    const matchesQuery = !query || searchableText.includes(query);
+    const visible = matchesCategory && matchesQuery;
+    card.hidden = !visible;
+    if (visible) shown++;
+  });
+  emptyState.hidden = shown > 0;
+  emptyState.textContent = shown
+    ? ''
+    : 'No encontramos recursos con esos criterios. Prueba otra búsqueda o selecciona “Todos”.';
+}
+$('#library-search')?.addEventListener('input',filterLibrary);
+$$('.library-filter').forEach(button=>button.addEventListener('click',()=>{
+  $$('.library-filter').forEach(item=>{
+    const active = item === button;
+    item.classList.toggle('active',active);
+    item.setAttribute('aria-pressed',String(active));
+  });
+  filterLibrary();
+}));
 $('#quest-reflection').addEventListener('input',()=>{const saved=readDemo('reflections',{});saved['quest_'+(currentQuest+1)]=$('#quest-reflection').value.slice(0,400);if(!writeDemo('reflections',saved)) showToast('No se pudo guardar la reflexión en este navegador.');});
 function restoreQuestReflection(){const saved=readDemo('reflections',{});$('#quest-reflection').value=saved['quest_'+(currentQuest+1)]||'';}
 renderWeeklyChallenge();updateAchievements();renderCommitment();
