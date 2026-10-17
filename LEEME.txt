@@ -1,0 +1,29 @@
+ACADEMIC HONESTY · PROTOTIPO DE DEMOSTRACIÓN
+
+CONTENIDO
+- index.html: página principal, acceso y panel administrativo.
+- style.css: estilos visuales.
+- script.js: progreso, eventos, quest ético y espacio seguro.
+- auth.js: inicio de sesión de demostración, creación de usuarios y QR.
+- logotipo.PNG: logotipo suministrado.
+
+CÓMO PROBARLO
+1. Mantén todos los archivos en la misma carpeta.
+2. Abre la web en un navegador moderno. El generador y lector QR necesitan conexión a internet.
+   Para escanear con la cámara, abre la página mediante HTTPS o desde localhost; muchos navegadores bloquean la cámara si se abre directamente como archivo local.
+3. Acceso administrador de demostración:
+   Usuario: admin
+   Contraseña: Honestidad2026!
+4. En el panel crea un usuario. Se genera un usuario único, una contraseña aleatoria y un QR. Guarda la contraseña cuando se muestra por primera vez.
+5. En la pantalla de acceso pulsa “Escanear QR con la cámara” y concede permiso cuando el navegador lo solicite. Al reconocer el QR, se prellenará el usuario; después escribe su contraseña para completar el acceso. También puedes escanear con la cámara del teléfono si la web está alojada en una URL accesible. El QR nunca contiene la contraseña.
+
+LIMITACIONES IMPORTANTES
+Este es un prototipo local, no un sistema de seguridad ni un servicio oficial de la EBC. Los usuarios, contraseñas y sesiones se almacenan en localStorage del navegador y no se sincronizan entre dispositivos. La cuenta administradora tiene credenciales fijas de demostración. No usar contraseñas reales ni datos personales reales. El QR facilita el acceso al identificar la cuenta, pero el usuario debe escribir su contraseña. Para que los QR funcionen desde distintos dispositivos, la web debe alojarse en una URL accesible; abrirla como archivo local no proporciona una dirección compartida. El generador y el lector QR se cargan desde bibliotecas CDN y requieren conexión a internet. La cámara requiere HTTPS o localhost y permiso explícito del usuario.
+
+Las secciones de progreso, eventos, quest ético y espacio seguro se mantienen en la web. Como el almacenamiento es local, esta versión no envía inscripciones ni mensajes a organizadores o personal de apoyo.
+
+
+AISLAMIENTO DE PERFILES (DEMO)
+El progreso académico y los apartados de eventos se guardan con claves locales separadas por identificador de usuario. Al iniciar sesión como estudiante se recarga la página para cargar sus propios datos. Los perfiles no comparten esas listas dentro de este navegador.
+
+Esto sigue siendo un prototipo local: no es seguridad real ni sincronización entre dispositivos. Los usuarios y contraseñas de demostración viven en localStorage y en el código del navegador; no usar datos reales ni publicar como plataforma segura.
