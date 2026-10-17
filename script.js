@@ -5,16 +5,16 @@ const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 let db = null;
 const getStudent = () => window.AH_CURRENT_USER?.role === "student" ? window.AH_CURRENT_USER : null;
-const databaseReady = (async () => {
+async function databaseReady() {
   try {
     if (window.AH_AUTH_READY) await window.AH_AUTH_READY;
-    db = window.AH_SUPABASE || null;
+    db = window.AH_SUPABASE || db;
     return Boolean(db && getStudent()?.id);
   } catch (error) {
     console.error("No se pudo preparar la sesión de datos:", error);
     return false;
   }
-})();
+}
 // Aislamiento local por perfil: cada estudiante usa claves propias en este navegador.
 // La sesión se escribe por auth.js antes de mostrar la sección del estudiante.
 const profileStorageKey = (key) => {
@@ -116,7 +116,7 @@ function renderGrades() {
     const del = document.createElement("button"); del.type = "button"; del.className = "delete-grade"; del.textContent = "×"; del.setAttribute("aria-label", `Eliminar calificación de ${g.subject}`);
     del.addEventListener("click", () => {
       (async () => {
-        if (!await databaseReady || !getStudent()?.id) return showToast("No hay una sesión de estudiante activa.");
+        if (!await databaseReady() || !getStudent()?.id) return showToast("No hay una sesión de estudiante activa.");
         const { error } = await db.from("grades").delete().eq("id", g.id).eq("user_id", getStudent().id);
         if (error) { console.error(error); return showToast("No se pudo eliminar la calificación."); }
         grades = grades.filter(x => x.id !== g.id); renderGrades(); showToast("Calificación eliminada.");
@@ -132,7 +132,7 @@ gradeForm.addEventListener("submit", async event => {
   if (!subject || !Number.isFinite(grade) || grade < 0 || grade > 100) {
     gradeStatus.textContent = "Escribe una materia y una calificación entre 0 y 100."; return;
   }
-  if (!await databaseReady || !getStudent()?.id) { gradeStatus.textContent = "Inicia sesión con tu cuenta de estudiante para guardar."; return; }
+  if (!await databaseReady() || !getStudent()?.id) { gradeStatus.textContent = "Inicia sesión con tu cuenta de estudiante para guardar."; return; }
   const { data, error } = await db.from("grades").insert({ user_id: getStudent().id, subject, grade }).select("id, subject, grade, created_at").single();
   if (error) { console.error(error); gradeStatus.textContent = "No se pudo guardar la calificación en la cuenta."; return; }
   grades.push({ id: data.id, subject: data.subject, grade: Number(data.grade), date: new Date(data.created_at).toLocaleDateString("es-MX") });
@@ -141,20 +141,22 @@ gradeForm.addEventListener("submit", async event => {
 $("#clear-grades").addEventListener("click", async () => {
   if (!grades.length) return;
   if (confirm("¿Borrar todas las calificaciones guardadas en este navegador? Esta acción no se puede deshacer.")) {
-    if (!await databaseReady || !getStudent()?.id) { gradeStatus.textContent = "No hay una sesión de estudiante activa."; return; }
+    if (!await databaseReady() || !getStudent()?.id) { gradeStatus.textContent = "No hay una sesión de estudiante activa."; return; }
     const { error } = await db.from("grades").delete().eq("user_id", getStudent().id);
     if (error) { console.error(error); gradeStatus.textContent = "No se pudieron borrar las calificaciones."; return; }
     grades = []; renderGrades(); gradeStatus.textContent = "Tus calificaciones se eliminaron de tu cuenta.";
   }
 });
 renderGrades();
-(async () => {
-  if (!await databaseReady || !getStudent()?.id) return;
-  const { data, error } = await db.from("grades").select("id, subject, grade, created_at").eq("user_id", getStudent().id).order("created_at", { ascending: true });
+async function loadGradesForCurrentStudent() {
+  if (!await databaseReady() || !getStudent()?.id) { grades = []; renderGrades(); return; }
+  const studentId = getStudent().id;
+  const { data, error } = await db.from("grades").select("id, subject, grade, created_at").eq("user_id", studentId).order("created_at", { ascending: true });
   if (error) { console.error(error); gradeStatus.textContent = "No se pudieron cargar las calificaciones."; return; }
+  if (getStudent()?.id !== studentId) return;
   grades = (data || []).map(g => ({ id: g.id, subject: g.subject, grade: Number(g.grade), date: new Date(g.created_at).toLocaleDateString("es-MX") }));
   renderGrades();
-})();
+}
 
 // Event registrations stored per authenticated student
 const EVENTS = {
@@ -177,7 +179,7 @@ function renderRegistrations() {
     const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel-registration"; cancel.textContent = "Cancelar inscripción";
     cancel.addEventListener("click", () => {
       (async () => {
-        if (!await databaseReady || !getStudent()?.id) return showToast("No hay una sesión activa.");
+        if (!await databaseReady() || !getStudent()?.id) return showToast("No hay una sesión activa.");
         const { error } = await db.from("event_registrations").delete().eq("id", reg.id).eq("user_id", getStudent().id);
         if (error) { console.error(error); return showToast("No se pudo cancelar la inscripción."); }
         registrations = registrations.filter(r => r.id !== reg.id); renderRegistrations(); showToast("Inscripción cancelada.");
@@ -205,7 +207,7 @@ $("#register-form").addEventListener("submit", async event => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     $("#register-status").textContent = "Escribe un correo válido."; return;
   }
-  if (!await databaseReady || !getStudent()?.id) { $("#register-status").textContent = "Inicia sesión con tu cuenta de estudiante para inscribirte."; return; }
+  if (!await databaseReady() || !getStudent()?.id) { $("#register-status").textContent = "Inicia sesión con tu cuenta de estudiante para inscribirte."; return; }
   if (registrations.some(r => r.eventId === eventId)) {
     $("#register-status").textContent = "Ya tienes una inscripción para este evento."; return;
   }
@@ -215,13 +217,15 @@ $("#register-form").addEventListener("submit", async event => {
   renderRegistrations(); dialog.close(); showToast("Inscripción guardada en tu cuenta.");
 });
 renderRegistrations();
-(async () => {
-  if (!await databaseReady || !getStudent()?.id) return;
-  const { data, error } = await db.from("event_registrations").select("id, event_key, full_name, email, created_at").eq("user_id", getStudent().id).order("created_at", { ascending: true });
+async function loadRegistrationsForCurrentStudent() {
+  if (!await databaseReady() || !getStudent()?.id) { registrations = []; renderRegistrations(); return; }
+  const studentId = getStudent().id;
+  const { data, error } = await db.from("event_registrations").select("id, event_key, full_name, email, created_at").eq("user_id", studentId).order("created_at", { ascending: true });
   if (error) { console.error(error); $("#register-status").textContent = "No se pudieron cargar tus inscripciones."; return; }
+  if (getStudent()?.id !== studentId) return;
   registrations = (data || []).map(r => ({ id: r.id, eventId: r.event_key, eventTitle: EVENTS[r.event_key]?.title || r.event_key, date: EVENTS[r.event_key]?.date || new Date(r.created_at).toLocaleDateString("es-MX"), name: r.full_name, email: r.email }));
   renderRegistrations();
-})();
+}
 
 // Ethical quests: 3 scenarios, 5 questions each
 const quests = [
@@ -374,7 +378,7 @@ function showQuestResult() {
   const percent = key => Math.round((totals[key] / max) * 100);
   const overall = Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100);
   (async () => {
-    if (!await databaseReady || !getStudent()?.id) return;
+    if (!await databaseReady() || !getStudent()?.id) return;
     const { error } = await db.from("quest_results").insert({
       user_id: getStudent().id,
       quest_key: `quest_${String(currentQuest + 1).padStart(2, "0")}`,
@@ -439,3 +443,12 @@ $("#safe-reset").addEventListener("click", () => {
 
 // Close dialog by clicking outside, if supported
 dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
+
+
+// Actualiza los datos privados cada vez que auth.js establece una sesión de estudiante.
+window.addEventListener("ah-student-ready", () => {
+  grades = []; registrations = [];
+  renderGrades(); renderRegistrations();
+  loadGradesForCurrentStudent();
+  loadRegistrationsForCurrentStudent();
+});
