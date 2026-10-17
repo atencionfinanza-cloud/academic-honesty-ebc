@@ -355,6 +355,9 @@ function renderQuestion() {
       answers[questionIndex] = option[0];
       $$(".answer-option", fieldset).forEach(x => x.classList.toggle("selected", $("input", x).checked));
       $("#quest-next").disabled = false; $("#answer-status").textContent = "";
+      const selected = q.options.find(item => item[0] === option[0]);
+      $("#choice-consequence-text").textContent = selected ? selected[3] : "Considera cómo podría afectar esta decisión a otras personas.";
+      $("#choice-consequence").hidden = false;
     });
   });
   $("#quest-back").disabled = questionIndex === 0;
@@ -375,6 +378,7 @@ function showQuestResult() {
   const max = quest.questions.length * 2;
   const totals = { integrity: 0, empathy: 0, responsibility: 0 };
   selected.forEach(opt => { totals.integrity += opt[2].integrity; totals.empathy += opt[2].empathy; totals.responsibility += opt[2].responsibility; });
+  const history = readDemo('quest_history', []); history.push({ quest: currentQuest, completedAt: new Date().toISOString(), score: Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100) }); writeDemo('quest_history', history); updateAchievements();
   const percent = key => Math.round((totals[key] / max) * 100);
   const overall = Math.round(((totals.integrity + totals.empathy + totals.responsibility) / (max * 3)) * 100);
   (async () => {
