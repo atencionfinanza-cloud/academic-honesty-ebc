@@ -1,0 +1,33 @@
+name: Validate student experience
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/student-experience]
+jobs:
+  syntax-and-markup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check script.js
+          node --check auth.js
+      - name: Check HTML IDs and JavaScript selectors
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const js = fs.readFileSync('script.js', 'utf8');
+          const ids = new Set([...html.matchAll(/\bid=["']([^"']+)["']/g)].map(m => m[1]));
+          const required = [...js.matchAll(/\$\(["']#([^"']+)["']\)/g)].map(m => m[1]);
+          const missing = [...new Set(required.filter(id => !ids.has(id)))];
+          if (missing.length) {
+            console.error('Missing HTML IDs referenced by script.js:', missing.join(', '));
+            process.exit(1);
+          }
+          console.log('OK: all static #id selectors in script.js exist in index.html');
+          NODE
