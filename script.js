@@ -508,7 +508,8 @@ const guidance = {
 };
 safeForm.addEventListener("submit", async event => {
   event.preventDefault();
-  const topic = $("#safe-topic").value, urgency = $("#safe-urgency").value;
+  const topic = $("#safe-topic").value, selectedUrgency = $("#safe-urgency").value;
+  const urgency = selectedUrgency === "orientacion" ? "normal" : selectedUrgency;
   const message = $("#safe-message").value.trim();
   if (!topic || !urgency || !$("#safe-consent").checked) return;
   if (!await databaseReady() || !getStudent()?.id) {
