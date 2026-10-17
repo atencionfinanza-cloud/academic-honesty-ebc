@@ -62,6 +62,7 @@
   function showStudent(user) {
     activeUser = user;
     window.AH_CURRENT_USER = user;
+    window.dispatchEvent(new CustomEvent('ah-student-ready'));
     hidePageSections();
 
     if (el('#contenido')) el('#contenido').hidden = false;
