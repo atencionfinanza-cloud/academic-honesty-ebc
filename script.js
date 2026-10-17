@@ -552,22 +552,32 @@ function updateAchievements() {
   if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=results.length;
 }
 function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value;$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=saved.value+(saved.detail?' Primer paso: '+saved.detail:'');}}
+let weeklyChallengeState = 'loading';
 async function loadWeeklyChallengeForCurrentStudent() {
+  weeklyChallengeState = 'loading';
+  renderWeeklyChallenge();
   if (!await databaseReady() || !getStudent()?.id) {
     writeDemo('weekly_challenge', null);
+    weeklyChallengeState = 'loaded';
     renderWeeklyChallenge(); updateAchievements(); return;
   }
   const studentId = getStudent().id;
+  const week = currentWeekKey();
   const { data, error } = await db.from('weekly_challenges')
     .select('week_key, response, completed_at').eq('user_id', studentId)
-    .eq('week_key', currentWeekKey()).maybeSingle();
+    .eq('week_key', week).maybeSingle();
   if (error) {
     console.error(error);
-    $('#challenge-status').textContent = 'No se pudo cargar el reto semanal.';
+    if (getStudent()?.id !== studentId) return;
+    writeDemo('weekly_challenge', null);
+    weeklyChallengeState = 'error';
+    renderWeeklyChallenge();
+    $('#challenge-status').textContent = 'No se pudo verificar el reto en tu cuenta. Comprueba tu conexión e inténtalo de nuevo.';
     return;
   }
   if (getStudent()?.id !== studentId) return;
   writeDemo('weekly_challenge', data ? { week: data.week_key, response: data.response, completedAt: data.completed_at } : null);
+  weeklyChallengeState = 'loaded';
   renderWeeklyChallenge(); updateAchievements();
 }
 async function loadCommitmentForCurrentStudent() {
@@ -589,14 +599,18 @@ async function loadCommitmentForCurrentStudent() {
 }
 function renderWeeklyChallenge() {
   const saved = readDemo('weekly_challenge', null);
-  const completedThisWeek = Boolean(saved && saved.week === currentWeekKey());
+  const completedThisWeek = weeklyChallengeState === 'loaded' && Boolean(saved && saved.week === currentWeekKey());
+  const loading = weeklyChallengeState === 'loading';
   const form = $('#challenge-form');
-  $('#challenge-response').value = completedThisWeek ? saved.response : '';
-  $('#challenge-response').disabled = completedThisWeek;
+  const field = $('#challenge-response');
   const submit = form.querySelector('button[type="submit"]');
-  submit.disabled = completedThisWeek;
-  submit.textContent = completedThisWeek ? 'Reto de esta semana completado' : 'Completar reto ↗';
-  $('#challenge-status').textContent = completedThisWeek ? 'Ya completaste el reto de esta semana. Tu respuesta quedó guardada en este perfil de demostración.' : '';
+  field.value = completedThisWeek ? saved.response : '';
+  field.disabled = completedThisWeek || loading;
+  submit.disabled = completedThisWeek || loading;
+  submit.textContent = loading ? 'Comprobando reto…' : completedThisWeek ? 'Reto de esta semana completado' : 'Completar reto ↗';
+  if (loading) $('#challenge-status').textContent = 'Verificando tu reto en tu cuenta…';
+  else if (completedThisWeek) $('#challenge-status').textContent = 'Ya completaste el reto de esta semana. Tu respuesta está guardada en tu cuenta.';
+  else if (weeklyChallengeState !== 'error') $('#challenge-status').textContent = '';
 }
 
 
