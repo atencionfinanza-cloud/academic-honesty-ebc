@@ -490,7 +490,7 @@ function updateAchievements() {
   if($('#dashboard-badge-count')) $('#dashboard-badge-count').textContent=earned.filter(item=>item.unlocked).length;
   if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=results.length;
 }
-function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value;$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=saved.value+(saved.detail?' Primer paso: '+saved.detail:'');}}
+function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value||'';$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=(saved.value||'')+(saved.detail?' Primer paso: '+saved.detail:'');}else{$('#commitment-value').value='';$('#commitment-detail').value='';$('#commitment-status').textContent='';$('#commitment-saved-text').textContent='';}}
 function renderWeeklyChallenge() {
   const saved = readDemo('weekly_challenge', null);
   const completedThisWeek = Boolean(saved && saved.week === currentWeekKey());
@@ -511,3 +511,13 @@ $$('.library-filter').forEach(button=>button.addEventListener('click',()=>{$$('.
 $('#quest-reflection').addEventListener('input',()=>{const saved=readDemo('reflections',{});saved['quest_'+(currentQuest+1)]=$('#quest-reflection').value.slice(0,400);if(!writeDemo('reflections',saved)) showToast('No se pudo guardar la reflexión en este navegador.');});
 function restoreQuestReflection(){const saved=readDemo('reflections',{});$('#quest-reflection').value=saved['quest_'+(currentQuest+1)]||'';}
 renderWeeklyChallenge();updateAchievements();renderCommitment();
+
+// Los módulos locales se vuelven a pintar al entrar con una cuenta distinta.
+// Esto evita mostrar en pantalla valores que se habían leído antes de resolver la sesión.
+window.addEventListener('ah-student-ready',()=>{
+  renderWeeklyChallenge();
+  updateAchievements();
+  renderCommitment();
+  restoreQuestReflection();
+  filterLibrary();
+});
