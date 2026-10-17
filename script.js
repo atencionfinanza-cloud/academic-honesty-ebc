@@ -506,17 +506,30 @@ const guidance = {
   bienestar: { title:"Puedes dar un paso pequeño y pedir compañía.", text:"El estrés puede sentirse abrumador. No necesitas esperar a que empeore para buscar orientación.", steps:["Identifica qué necesitas resolver primero y qué puede esperar.","Habla con alguien de confianza o solicita orientación profesional o institucional.","Si sientes que podrías hacerte daño o estás en peligro, busca ayuda inmediata de los servicios de emergencia o una persona cercana."] },
   otro: { title:"Empieza por la ayuda que te haga sentir más seguro.", text:"Aunque no tengas claro cómo nombrar lo que ocurre, puedes pedir orientación sin compartir más de lo que quieras.", steps:["Piensa qué te gustaría que cambiara o qué necesitas para sentirte mejor.","Busca a una persona de confianza o al área institucional que corresponda.","Comparte la información de forma gradual y pregunta cómo se manejará antes de dar datos personales."] }
 };
-safeForm.addEventListener("submit", event => {
+safeForm.addEventListener("submit", async event => {
   event.preventDefault();
   const topic = $("#safe-topic").value, urgency = $("#safe-urgency").value;
+  const message = $("#safe-message").value.trim();
   if (!topic || !urgency || !$("#safe-consent").checked) return;
+  if (!await databaseReady() || !getStudent()?.id) {
+    $("#safe-status").textContent = "Inicia sesión con tu cuenta de estudiante para guardar esta solicitud de forma privada.";
+    return;
+  }
+  const studentId = getStudent().id;
+  const { error } = await db.from("safe_space_messages").insert({ user_id: studentId, topic, urgency, message });
+  if (error) {
+    console.error("No se pudo guardar la solicitud de Espacio Seguro:", error);
+    $("#safe-status").textContent = "No se pudo guardar tu solicitud. Comprueba tu conexión e inténtalo de nuevo. No se ha enviado.";
+    return;
+  }
+  if (getStudent()?.id !== studentId) return;
   const base = guidance[topic] || guidance.otro;
   $("#safe-response-title").textContent = urgency === "riesgo" ? "Prioriza tu seguridad ahora." : urgency === "pronto" ? "Busca una conversación pronto." : base.title;
   let intro = base.text;
   let steps = [...base.steps];
   if (urgency === "riesgo") {
-    intro = "Este sitio no puede alertar a nadie ni ofrecer atención inmediata. Si no estás a salvo ahora, busca ayuda en persona y contacta a emergencias.";
-    steps = ["Si estás en México y hay peligro inmediato, llama al 911.","Ve a un lugar seguro y contacta a una persona de confianza que pueda acompañarte.","No esperes una respuesta de esta página: el formulario no envía mensajes ni se supervisa."];
+    intro = "Este sitio no ofrece atención inmediata ni alerta a personal. Si no estás a salvo ahora, busca ayuda en persona y contacta a emergencias.";
+    steps = ["Si estás en México y hay peligro inmediato, llama al 911.","Ve a un lugar seguro y contacta a una persona de confianza que pueda acompañarte.","No esperes una respuesta de esta página: la solicitud se guarda, pero no se supervisa en tiempo real."];
   } else if (urgency === "pronto") {
     steps.unshift("Intenta contactar hoy a una persona de confianza, docente o área institucional de orientación.");
   }
@@ -524,7 +537,7 @@ safeForm.addEventListener("submit", event => {
   const list = $("#safe-response-list"); list.replaceChildren();
   steps.forEach(step => { const li = document.createElement("li"); li.textContent = step; list.append(li); });
   $("#safe-response").hidden = false;
-  $("#safe-status").textContent = "Orientación generada localmente. Tu mensaje no se ha enviado ni guardado.";
+  $("#safe-status").textContent = "Tu solicitud quedó guardada de forma privada en tu cuenta. Este formulario no se supervisa en tiempo real.";
   $("#safe-response").scrollIntoView({ behavior: "smooth", block: "nearest" });
 });
 $("#safe-reset").addEventListener("click", () => {
@@ -629,6 +642,29 @@ $('#edit-commitment').addEventListener('click',()=>{$('#commitment-form').hidden
 function filterLibrary(){const query=$('#library-search').value.trim().toLocaleLowerCase('es-MX');const category=$('.library-filter.active')?.dataset.filter||'todos';let shown=0;$$('.resource-card').forEach(card=>{const ok=(category==='todos'||card.dataset.category===category)&&(!query||(card.dataset.search+' '+card.textContent).toLocaleLowerCase('es-MX').includes(query));card.hidden=!ok;if(ok)shown++;});$('#library-empty').hidden=shown>0;}
 $('#library-search').addEventListener('input',filterLibrary);
 $$('.library-filter').forEach(button=>button.addEventListener('click',()=>{$$('.library-filter').forEach(item=>{const active=item===button;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active));});filterLibrary();}));
-$('#quest-reflection').addEventListener('input',()=>{const saved=readDemo('reflections',{});saved['quest_'+(currentQuest+1)]=$('#quest-reflection').value.slice(0,400);if(!writeDemo('reflections',saved)) showToast('No se pudo guardar la reflexión en este navegador.');});
-function restoreQuestReflection(){const saved=readDemo('reflections',{});$('#quest-reflection').value=saved['quest_'+(currentQuest+1)]||'';}
+let reflectionSaveTimer = null;
+$('#quest-reflection').addEventListener('input', () => {
+  window.clearTimeout(reflectionSaveTimer);
+  reflectionSaveTimer = window.setTimeout(saveQuestReflection, 500);
+});
+$('#quest-reflection').addEventListener('blur', saveQuestReflection);
+async function saveQuestReflection() {
+  const studentId = getStudent()?.id;
+  const reflection = $('#quest-reflection').value.slice(0, 400);
+  const questKey = `quest_${String(currentQuest + 1).padStart(2, '0')}`;
+  if (!await databaseReady() || !studentId) return;
+  const { error } = await db.from('quest_reflections').upsert({
+    user_id: studentId, quest_key: questKey, reflection, updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id,quest_key' });
+  if (error) { console.error('No se pudo guardar la reflexión:', error); showToast('No se pudo guardar la reflexión. Comprueba tu conexión.'); }
+}
+async function restoreQuestReflection() {
+  const studentId = getStudent()?.id;
+  $('#quest-reflection').value = '';
+  if (!await databaseReady() || !studentId) return;
+  const questKey = `quest_${String(currentQuest + 1).padStart(2, '0')}`;
+  const { data, error } = await db.from('quest_reflections').select('reflection').eq('user_id', studentId).eq('quest_key', questKey).maybeSingle();
+  if (error) { console.error('No se pudo cargar la reflexión:', error); return; }
+  if (getStudent()?.id === studentId) $('#quest-reflection').value = data?.reflection || '';
+}
 renderWeeklyChallenge();updateAchievements();renderCommitment();
