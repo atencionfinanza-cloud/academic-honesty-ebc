@@ -50,29 +50,62 @@ const demoKey = name => profileStorageKey('ah_' + name + '_v1');
 const readDemo = (name, fallback) => { try { const value = JSON.parse(localStorage.getItem(demoKey(name)) || 'null'); return value ?? fallback; } catch { return fallback; } };
 const writeDemo = (name, value) => { try { localStorage.setItem(demoKey(name), JSON.stringify(value)); return true; } catch { return false; } };
 
-// Handle local demo forms before other page modules.
-
-$('#challenge-form')?.addEventListener('submit', event => {
+// Retos y compromisos se guardan en Supabase por cuenta autenticada.
+$('#challenge-form')?.addEventListener('submit', async event => {
   event.preventDefault(); event.stopPropagation();
   const response = $('#challenge-response')?.value.trim();
   if (!response) return;
-  const saved = readDemo('weekly_challenge', null);
-  if (saved && saved.week === currentWeekKey()) { $('#challenge-status').textContent = 'Ya completaste el reto de esta semana.'; return; }
-  const now = new Date();
-  if (!writeDemo('weekly_challenge', { week: currentWeekKey(now), response, completedAt: now.toISOString() })) {
-    $('#challenge-status').textContent = 'No se pudo guardar en este navegador. Comprueba el espacio disponible y vuelve a intentarlo.'; return;
+  if (!await databaseReady() || !getStudent()?.id) {
+    $('#challenge-status').textContent = 'Inicia sesión con tu cuenta de estudiante para guardar el reto.';
+    return;
   }
-  $('#challenge-status').textContent = 'Reto semanal guardado en este perfil de demostración.';
+  const studentId = getStudent().id;
+  const week = currentWeekKey();
+  const { data: existing, error: readError } = await db.from('weekly_challenges')
+    .select('id, response, completed_at').eq('user_id', studentId).eq('week_key', week).maybeSingle();
+  if (readError) {
+    console.error(readError);
+    $('#challenge-status').textContent = 'No se pudo comprobar el reto semanal. Inténtalo de nuevo.';
+    return;
+  }
+  if (existing) {
+    writeDemo('weekly_challenge', { week, response: existing.response, completedAt: existing.completed_at });
+    $('#challenge-status').textContent = 'Ya completaste el reto de esta semana.';
+    renderWeeklyChallenge(); updateAchievements(); return;
+  }
+  const { data, error } = await db.from('weekly_challenges')
+    .insert({ user_id: studentId, week_key: week, response })
+    .select('week_key, response, completed_at').single();
+  if (error) {
+    console.error(error);
+    $('#challenge-status').textContent = 'No se pudo guardar el reto en tu cuenta. Inténtalo de nuevo.';
+    return;
+  }
+  writeDemo('weekly_challenge', { week: data.week_key, response: data.response, completedAt: data.completed_at });
+  $('#challenge-status').textContent = 'Reto semanal guardado en tu cuenta.';
   renderWeeklyChallenge(); updateAchievements(); showToast('Reto semanal completado.');
 });
-$('#commitment-form')?.addEventListener('submit', event => {
+$('#commitment-form')?.addEventListener('submit', async event => {
   event.preventDefault(); event.stopPropagation();
   const value = $('#commitment-value')?.value;
   if (!value) return;
-  if (!writeDemo('commitment', { value, detail: $('#commitment-detail')?.value.trim() || '', updatedAt: new Date().toISOString() })) {
-    $('#commitment-status').textContent = 'No se pudo guardar en este navegador.'; return;
+  if (!await databaseReady() || !getStudent()?.id) {
+    $('#commitment-status').textContent = 'Inicia sesión con tu cuenta de estudiante para guardar el compromiso.';
+    return;
   }
-  $('#commitment-status').textContent = 'Tu compromiso quedó guardado en este perfil de demostración.';
+  const studentId = getStudent().id;
+  const detail = $('#commitment-detail')?.value.trim() || '';
+  const updatedAt = new Date().toISOString();
+  const { data, error } = await db.from('student_commitments')
+    .upsert({ user_id: studentId, commitment: value, detail, updated_at: updatedAt }, { onConflict: 'user_id' })
+    .select('commitment, detail, updated_at').single();
+  if (error) {
+    console.error(error);
+    $('#commitment-status').textContent = 'No se pudo guardar el compromiso en tu cuenta. Inténtalo de nuevo.';
+    return;
+  }
+  writeDemo('commitment', { value: data.commitment, detail: data.detail || '', updatedAt: data.updated_at });
+  $('#commitment-status').textContent = 'Tu compromiso quedó guardado en tu cuenta.';
   renderCommitment(); updateAchievements(); showToast('Compromiso guardado.');
 });
 
@@ -497,6 +530,8 @@ window.addEventListener("ah-student-ready", () => {
   renderGrades(); renderRegistrations();
   loadGradesForCurrentStudent();
   loadRegistrationsForCurrentStudent();
+  loadWeeklyChallengeForCurrentStudent();
+  loadCommitmentForCurrentStudent();
 });
 
 // Nuevas herramientas de aprendizaje; los datos de demostración quedan separados por perfil local.
@@ -517,6 +552,41 @@ function updateAchievements() {
   if($('#dashboard-quest-count')) $('#dashboard-quest-count').textContent=results.length;
 }
 function renderCommitment(){const saved=readDemo('commitment',null);$('#commitment-saved').hidden=!saved;$('#commitment-form').hidden=Boolean(saved);if(saved){$('#commitment-value').value=saved.value;$('#commitment-detail').value=saved.detail||'';$('#commitment-saved-text').textContent=saved.value+(saved.detail?' Primer paso: '+saved.detail:'');}}
+async function loadWeeklyChallengeForCurrentStudent() {
+  if (!await databaseReady() || !getStudent()?.id) {
+    writeDemo('weekly_challenge', null);
+    renderWeeklyChallenge(); updateAchievements(); return;
+  }
+  const studentId = getStudent().id;
+  const { data, error } = await db.from('weekly_challenges')
+    .select('week_key, response, completed_at').eq('user_id', studentId)
+    .eq('week_key', currentWeekKey()).maybeSingle();
+  if (error) {
+    console.error(error);
+    $('#challenge-status').textContent = 'No se pudo cargar el reto semanal.';
+    return;
+  }
+  if (getStudent()?.id !== studentId) return;
+  writeDemo('weekly_challenge', data ? { week: data.week_key, response: data.response, completedAt: data.completed_at } : null);
+  renderWeeklyChallenge(); updateAchievements();
+}
+async function loadCommitmentForCurrentStudent() {
+  if (!await databaseReady() || !getStudent()?.id) {
+    writeDemo('commitment', null);
+    renderCommitment(); updateAchievements(); return;
+  }
+  const studentId = getStudent().id;
+  const { data, error } = await db.from('student_commitments')
+    .select('commitment, detail, updated_at').eq('user_id', studentId).maybeSingle();
+  if (error) {
+    console.error(error);
+    $('#commitment-status').textContent = 'No se pudo cargar tu compromiso.';
+    return;
+  }
+  if (getStudent()?.id !== studentId) return;
+  writeDemo('commitment', data ? { value: data.commitment, detail: data.detail || '', updatedAt: data.updated_at } : null);
+  renderCommitment(); updateAchievements();
+}
 function renderWeeklyChallenge() {
   const saved = readDemo('weekly_challenge', null);
   const completedThisWeek = Boolean(saved && saved.week === currentWeekKey());
